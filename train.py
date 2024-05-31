@@ -119,7 +119,7 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
     train_total_loss = train_total_loss / total
     time_elapsed = time.time() - since
     loss_msg = '    total_loss: {:.4f} time: {:.0f}m {:.0f}s'\
-        .format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
+        .format(train_total_loss/10, time_elapsed // 60, time_elapsed % 60)
     _print(loss_msg)
 
     # test model on lfw
