@@ -9,11 +9,13 @@ from torch.nn import Parameter
 class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)  # Ensure kernel_size is a tuple
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
-        self.weight = Parameter(torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        self.weight = Parameter(torch.Tensor(out_channels, in_channels, *kernel_size))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
@@ -101,13 +103,14 @@ class ComplexMobileFacenet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, ComplexConv2d):
-                n = m.kernel_size * m.kernel_size * m.out_channels
+                if isinstance(m.kernel_size, int):
+                    n = m.kernel_size * m.kernel_size * m.out_channels
+                               else:
+                    n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d) or isinstance(m, ComplexBatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-
-
 
     def _make_layer(self, block, setting):
         layers = []
@@ -148,12 +151,12 @@ class ComplexArcMarginProduct(nn.Module):
     def forward(self, x, label):
         cosine = F.linear(F.normalize(x), F.normalize(self.weight))
         sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
-        phi = cosine * self.cos_m -        sine * self.sin_m
+        phi = cosine * self.cos_m - sine * self.sin_m
         if self.easy_margin:
             phi = torch.where(cosine > 0, phi, cosine)
         else:
             phi = torch.where((cosine - self.th) > 0, phi, cosine - self.mm)
-        one_hot = torch.zeros(cosine.size(), device='cuda')
+        one_hot = torch.zeros(cosine.size(), device=x.device)
         one_hot.scatter_(1, label.view(-1, 1).long(), 1)
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
