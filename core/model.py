@@ -99,11 +99,12 @@ class ComplexMobileFacenet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, ComplexConv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                n = m.kernel_size * m.kernel_size * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d) or isinstance(m, ComplexBatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
 
 
     def _make_layer(self, block, setting):
