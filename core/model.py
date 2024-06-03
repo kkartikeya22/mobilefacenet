@@ -9,9 +9,10 @@ from torch.nn import Parameter
 class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
-        self.kernel_size = kernel_size  # Store the kernel size as an attribute
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
+        self.kernel_size = kernel_size
+        self.out_channels = out_channels
 
     def forward(self, x):
         real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
@@ -103,6 +104,7 @@ class ComplexMobileFacenet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d) or isinstance(m, ComplexBatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+
 
     def _make_layer(self, block, setting):
         layers = []
