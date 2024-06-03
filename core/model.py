@@ -105,7 +105,7 @@ class ComplexMobileFacenet(nn.Module):
             if isinstance(m, nn.Conv2d) or isinstance(m, ComplexConv2d):
                 if isinstance(m.kernel_size, int):
                     n = m.kernel_size * m.kernel_size * m.out_channels
-                               else:
+                else:
                     n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
             elif isinstance(m, nn.BatchNorm2d) or isinstance(m, ComplexBatchNorm2d):
