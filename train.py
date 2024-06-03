@@ -130,33 +130,33 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
             res = [net(d).data.cpu().numpy() for d in data]
             featureL = np.concatenate((res[0], res[1]), 1)
             featureR = np.concatenate((res[2], res[3]), 1)
-            if featureLs is None:
-                featureLs = featureL
-            else:
-                featureLs = np.concatenate((featureLs, featureL), 0)
-            if featureRs is None:
-                featureRs = featureR
-            else:
-                featureRs = np.concatenate((featureRs, featureR), 0)
+if featureLs is None:
+    featureLs = featureL
+else:
+    featureLs = np.concatenate((featureLs, featureL), 0)
+if featureRs is None:
+    featureRs = featureR
+else:
+    featureRs = np.concatenate((featureRs, featureR), 0)
 
-        result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
-        # save tmp_result
-        scipy.io.savemat('./result/tmp_result.mat', result)
-        accs = evaluation_10_fold('./result/tmp_result.mat')
-        _print('    ave: {:.4f}'.format(np.mean(accs) * 100))
+result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
+# save tmp_result
+scipy.io.savemat('./result/tmp_result.mat', result)
+accs = evaluation_10_fold('./result/tmp_result.mat')
+_print('    ave: {:.4f}'.format(np.mean(accs) * 100))
 
-    # save model
-    if epoch % SAVE_FREQ == 0:
-        msg = 'Saving checkpoint: {}'.format(epoch)
-        _print(msg)
-        if multi_gpus:
-            net_state_dict =            net.module.state_dict()
-        else:
-            net_state_dict = net.state_dict()
-        if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
-        torch.save({
-            'epoch': epoch,
-            'net_state_dict': net_state_dict},
-            os.path.join(save_dir, '%03d.ckpt' % epoch))
+# save model
+if epoch % SAVE_FREQ == 0:
+    msg = 'Saving checkpoint: {}'.format(epoch)
+    _print(msg)
+    if multi_gpus:
+        net_state_dict = net.module.state_dict()
+    else:
+        net_state_dict = net.state_dict()
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    torch.save({
+        'epoch': epoch,
+        'net_state_dict': net_state_dict},
+        os.path.join(save_dir, '%03d.ckpt' % epoch))
 print('finishing training')
