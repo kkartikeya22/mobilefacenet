@@ -150,7 +150,7 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         msg = 'Saving checkpoint: {}'.format(epoch)
         _print(msg)
         if multi_gpus:
-            net_state_dict = net.module.state_dict()
+            net_state_dict =            net.module.state_dict()
         else:
             net_state_dict = net.state_dict()
         if not os.path.exists(save_dir):
