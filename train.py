@@ -51,7 +51,10 @@ testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
                                          shuffle=False, num_workers=2, drop_last=False)
 
 # define model
-net = ComplexMobileFacenet()
+# Define YOUR_BOTTLENECK_SETTING here
+YOUR_BOTTLENECK_SETTING = [(1, 64, 5, 2), (2, 128, 1, 1), (4, 128, 6, 1), (2, 512, 1, 1)]
+net = ComplexMobileFacenet(bottleneck_setting=YOUR_BOTTLENECK_SETTING)
+
 ArcMargin = ComplexArcMarginProduct(128, trainset.class_nums)
 
 if RESUME:
