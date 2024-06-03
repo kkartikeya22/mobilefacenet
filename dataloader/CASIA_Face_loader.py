@@ -33,9 +33,17 @@ class CASIA_Face(Dataset):
         img = img[:, ::flip, :]
         img = (img - 127.5) / 128.0
         img = img.transpose(2, 0, 1)
-        img = torch.from_numpy(img).float()
 
-        return img, target
+        # Create the imaginary part as random noise
+        img_real = img
+        img_imag = np.random.normal(0, 1, img.shape).astype(np.float32)
+
+        # Stack the real and imaginary parts along a new dimension
+        img_complex = np.stack([img_real, img_imag], axis=0)
+
+        img_complex = torch.from_numpy(img_complex).float()
+
+        return img_complex, target
 
     def __len__(self):
         return len(self.image_list)
