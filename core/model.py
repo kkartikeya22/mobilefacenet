@@ -27,12 +27,22 @@ class ComplexConv2d(nn.Module):
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
-        self.real_bn = nn.BatchNorm2d(num_features)
-        self.imag_bn = nn.BatchNorm2d(num_features)
+        self.num_features = num_features
+        self.real_weight = nn.Parameter(torch.Tensor(num_features))
+        self.imag_weight = nn.Parameter(torch.Tensor(num_features))
+        self.real_bias = nn.Parameter(torch.Tensor(num_features))
+        self.imag_bias = nn.Parameter(torch.Tensor(num_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.ones_(self.real_weight)
+        nn.init.zeros_(self.real_bias)
+        nn.init.ones_(self.imag_weight)
+        nn.init.zeros_(self.imag_bias)
 
     def forward(self, x):
-        real = self.real_bn(x[:, 0])
-        imag = self.imag_bn(x[:, 1])
+        real = F.batch_norm(x[:, 0], None, None, self.real_weight, self.real_bias, True, 0.1, 1e-5)
+        imag = F.batch_norm(x[:, 1], None, None, self.imag_weight, self.imag_bias, True, 0.1, 1e-5)
         return torch.stack([real, imag], dim=1)
 
 class ComplexPReLU(nn.Module):
