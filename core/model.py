@@ -18,6 +18,7 @@ class ComplexConv2d(nn.Module):
         imag = self.real_conv(x[:, 1]) + self.imag_conv(x[:, 0])
         return torch.stack([real, imag], dim=1)
 
+
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
