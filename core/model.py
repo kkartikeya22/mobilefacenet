@@ -13,6 +13,8 @@ class ComplexConv2d(nn.Module):
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
+        self.weight = Parameter(torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
         real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
