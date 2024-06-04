@@ -161,5 +161,12 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
     if epoch % SAVE_FREQ == 0:
         state = {'epoch': epoch, 'net_state_dict': net.state_dict()}
         torch.save(state, os.path.join(save_dir, '%03d.ckpt' % epoch))
+# Handle the continuation here after saving the model
         _print('    Model saved to %s' % save_dir)
+
+# Continue your code logic here if necessary
+# For example:
+# Some further processing or analysis
+
+# End of code
 
