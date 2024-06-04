@@ -1,4 +1,5 @@
 import os
+import torch
 import torch.utils.data
 from torch import nn
 from torch.nn import DataParallel
@@ -52,7 +53,7 @@ testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
 
 # define model
 # Define YOUR_BOTTLENECK_SETTING here
-YOUR_BOTTLENECK_SETTING = [(1, 64, 5, 2), (2, 128, 1, 1), (4, 128, 6, 1), (2, 512, 1, 1)]
+YOUR_BOTTLENECK_SETTING = [(2, 64, 5, 2), (4, 128, 1, 1), (2, 128, 6, 1), (2, 512, 1, 1)]
 net = ComplexMobileFacenet(bottleneck_setting=YOUR_BOTTLENECK_SETTING)
 
 ArcMargin = ComplexArcMarginProduct(128, trainset.class_nums)
@@ -105,6 +106,8 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         batch_size = img.size(0)
         optimizer_ft.zero_grad()
 
+        # Adjusting input to have two channels for real and imaginary parts
+        img = torch.stack([img, img], dim=1)
         raw_logits = net(img)
 
         output = ArcMargin(raw_logits, label)
@@ -118,7 +121,7 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
     train_total_loss = train_total_loss / total
     time_elapsed = time.time() - since
     loss_msg = '    total_loss: {:.4f} time: {:.0f}m {:.0f}s'\
-        .format(train_total_loss/10, time_elapsed // 60, time_elapsed % 60)
+        .format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
     _print(loss_msg)
 
     # test model on lfw
@@ -130,36 +133,36 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         for data in testloader:
             for i in range(len(data)):
                 data[i] = data[i].cuda()
-            res = [net(d).data.cpu().numpy() for d in data]
+            res = [net(torch.stack([d, d], dim=1)).data.cpu().numpy() for d in data]
             featureL = np.concatenate((res[0], res[1]), 1)
             featureR = np.concatenate((res[2], res[3]), 1)
-if featureLs is None:
-    featureLs = featureL
-else:
-    featureLs = np.concatenate((featureLs, featureL), 0)
-if featureRs is None:
-    featureRs = featureR
-else:
-    featureRs = np.concatenate((featureRs, featureR), 0)
+            if featureLs is None:
+                featureLs = featureL
+            else:
+                featureLs = np.concatenate((featureLs, featureL), 0)
+            if featureRs is None:
+                featureRs = featureR
+            else:
+                featureRs = np.concatenate((featureRs, featureR), 0)
 
-result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
-# save tmp_result
-scipy.io.savemat('./result/tmp_result.mat', result)
-accs = evaluation_10_fold('./result/tmp_result.mat')
-_print('    ave: {:.4f}'.format(np.mean(accs) * 100))
+        result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
+        # save tmp_result
+        scipy.io.savemat('./result/tmp_result.mat', result)
+        accs = evaluation_10_fold('./result/tmp_result.mat')
+        _print('    ave: {:.4f}'.format(np.mean(accs) * 100))
 
-# save model
-if epoch % SAVE_FREQ == 0:
-    msg = 'Saving checkpoint: {}'.format(epoch)
-    _print(msg)
-    if multi_gpus:
-        net_state_dict = net.module.state_dict()
-    else:
-        net_state_dict = net.state_dict()
-    if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
-    torch.save({
-        'epoch': epoch,
-        'net_state_dict': net_state_dict},
-        os.path.join(save_dir, '%03d.ckpt' % epoch))
+    # save model
+    if epoch % SAVE_FREQ == 0:
+        msg = 'Saving checkpoint: {}'.format(epoch)
+        _print(msg)
+        if multi_gpus:
+            net_state_dict = net.module.state_dict()
+        else:
+            net_state_dict = net.state_dict()
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        torch.save({
+            'epoch': epoch,
+            'net_state_dict': net_state_dict},
+            os.path.join(save_dir, '%03d.ckpt' % epoch))
 print('finishing training')

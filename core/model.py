@@ -1,22 +1,18 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import math
 from torch.nn import Parameter
+import torchvision.transforms as transforms
+from PIL import Image
+import numpy as np
 
 class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
-        if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
-        self.kernel_size = kernel_size
-        self.out_channels = out_channels
-        self.weight = Parameter(torch.Tensor(out_channels, in_channels, *kernel_size))
-        nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
         real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
@@ -26,27 +22,8 @@ class ComplexConv2d(nn.Module):
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
-        self.num_features = num_features
         self.real_bn = nn.BatchNorm2d(num_features)
         self.imag_bn = nn.BatchNorm2d(num_features)
-
-    @property
-    def weight(self):
-        return torch.stack([self.real_bn.weight, self.imag_bn.weight], dim=0)
-
-    @weight.setter
-    def weight(self, value):
-        self.real_bn.weight.data = value[0].data
-        self.imag_bn.weight.data = value[1].data
-
-    @property
-    def bias(self):
-        return torch.stack([self.real_bn.bias, self.imag_bn.bias], dim=0)
-
-    @bias.setter
-    def bias(self, value):
-        self.real_bn.bias.data = value[0].data
-        self.imag_bn.bias.data = value[1].data
 
     def forward(self, x):
         real = self.real_bn(x[:, 0])
@@ -69,12 +46,15 @@ class ComplexBottleneck(nn.Module):
         super(ComplexBottleneck, self).__init__()
         self.connect = stride == 1 and inp == oup
         self.conv = nn.Sequential(
+            # pw
             ComplexConv2d(inp, inp * expansion, 1, 1, 0, bias=False),
             ComplexBatchNorm2d(inp * expansion),
             ComplexPReLU(inp * expansion),
+            # dw
             ComplexConv2d(inp * expansion, inp * expansion, 3, stride, 1, bias=False, groups=inp * expansion),
             ComplexBatchNorm2d(inp * expansion),
             ComplexPReLU(inp * expansion),
+            # pw-linear
             ComplexConv2d(inp * expansion, oup, 1, 1, 0, bias=False),
             ComplexBatchNorm2d(oup),
         )
@@ -96,6 +76,7 @@ class ComplexConvBlock(nn.Module):
         self.bn = ComplexBatchNorm2d(oup)
         if not linear:
             self.prelu = ComplexPReLU(oup)
+
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
@@ -107,12 +88,12 @@ class ComplexConvBlock(nn.Module):
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
         super(ComplexMobileFacenet, self).__init__()
-        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # changed input channels from 3 to 2 (real and imaginary parts)
+        self.conv1 = ComplexConvBlock(3, 64, 3, 2, 1)  # 3 channels for RGB
         self.dw_conv1 = ComplexConvBlock(64, 64, 3, 1, 1, dw=True)
         self.inplanes = 64
         block = ComplexBottleneck
         self.blocks = self._make_layer(block, bottleneck_setting)
-        self.conv2 = ComplexConvBlock(self.inplanes, 512, 1, 1, 0)
+        self.conv2 = ComplexConvBlock(128, 512, 1, 1, 0)
         self.linear7 = ComplexConvBlock(512, 512, (7, 6), 1, 0, dw=True, linear=True)
         self.linear1 = ComplexConvBlock(512, 128, 1, 1, 0, linear=True)
 
@@ -178,7 +159,7 @@ class ComplexArcMarginProduct(nn.Module):
         return output
 
 if __name__ == "__main__":
-    input = Variable(torch.FloatTensor(2, 2, 112, 96))  # Changed input size to include real and imaginary parts
+    input = Variable(torch.FloatTensor(2, 2, 3, 112, 96))  # Include real and imaginary parts
     net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
     print(net)
     x = net(input)
