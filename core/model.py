@@ -179,6 +179,7 @@ class ComplexArcMarginProduct(nn.Module):
         output *= self.s
         return output
 
+
 if __name__ == "__main__":
     input = Variable(torch.FloatTensor(2, 2, 112, 96))  # Changed input size to include real and imaginary parts
     net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
