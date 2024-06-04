@@ -17,7 +17,7 @@ from lfw_eval import parseList, evaluation_10_fold
 import numpy as np
 import scipy.io
 
-# GPU initialization
+# gpu init
 gpu_list = ''
 multi_gpus = False
 if isinstance(GPU, int):
@@ -30,7 +30,7 @@ else:
             gpu_list += ','
 os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
 
-# Other initializations
+# other init
 start_epoch = 1
 save_dir = os.path.join(SAVE_DIR, MODEL_PRE + 'v2_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 if os.path.exists(save_dir):
@@ -39,7 +39,7 @@ os.makedirs(save_dir)
 logging = init_log(save_dir)
 _print = logging.info
 
-# Define trainloader and testloader
+# define trainloader and testloader
 trainset = CASIA_Face(root=CASIA_DATA_DIR)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                           shuffle=True, num_workers=2, drop_last=False)
@@ -51,7 +51,7 @@ testdataset = LFW(nl, nr)
 testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
                                          shuffle=False, num_workers=2, drop_last=False)
 
-# Define model
+# define model
 # Define YOUR_BOTTLENECK_SETTING here
 YOUR_BOTTLENECK_SETTING = [(2, 64, 5, 2), (4, 128, 1, 1), (2, 128, 6, 1), (2, 512, 1, 1)]
 net = ComplexMobileFacenet(bottleneck_setting=YOUR_BOTTLENECK_SETTING)
@@ -63,7 +63,7 @@ if RESUME:
     net.load_state_dict(ckpt['net_state_dict'])
     start_epoch = ckpt['epoch'] + 1
 
-# Define optimizers
+# define optimizers
 ignored_params = list(map(id, net.linear1.parameters()))
 ignored_params += list(map(id, ArcMargin.weight))
 prelu_params_id = []
@@ -94,7 +94,7 @@ best_acc = 0.0
 best_epoch = 0
 for epoch in range(start_epoch, TOTAL_EPOCH+1):
     exp_lr_scheduler.step()
-    # Train model
+    # train model
     _print('Train Epoch: {}/{} ...'.format(epoch, TOTAL_EPOCH))
     net.train()
 
@@ -124,7 +124,7 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         .format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
     _print(loss_msg)
 
-    # Test model on LFW
+    # test model on lfw
     if epoch % TEST_FREQ == 0:
         net.eval()
         featureLs = None
@@ -133,9 +133,9 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         for data in testloader:
             for i in range(len(data)):
                 data[i] = data[i].cuda()
-            res = [net(data[i].unsqueeze(1).repeat(1, 2, 1, 1)).data.cpu().numpy() for i in range(len(data))]
-            featureL = np.concatenate((res[0], res[1]), 1)
-            featureR = np.concatenate((res[2], res[3]), 1)
+            res = [net(data[i]) for i in range(len(data))]
+            featureL = torch.cat((res[0], res[1]), 1).data.cpu().numpy()
+            featureR = torch.cat((res[2], res[3]), 1).data.cpu().numpy()
             if featureLs is None:
                 featureLs = featureL
             else:
@@ -146,12 +146,12 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
                 featureRs = np.concatenate((featureRs, featureR), 0)
 
         result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
-        # Save tmp_result
+        # save tmp_result
         scipy.io.savemat('./result/tmp_result.mat', result)
         accs = evaluation_10_fold('./result/tmp_result.mat')
         _print('    ave: {:.4f}'.format(np.mean(accs) * 100))
 
-    # Save model
+    # save model
     if epoch % SAVE_FREQ == 0:
         msg = 'Saving checkpoint: {}'.format(epoch)
         _print(msg)
@@ -164,5 +164,5 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         torch.save({
             'epoch': epoch,
             'net_state_dict': net_state_dict},
-            os.path.join(save_dir, '%03d.ckpt' % epoch))
-print('Finishing training')
+            os.path.join(savedir, '%03d.ckpt' % epoch))
+print('finishing training')
