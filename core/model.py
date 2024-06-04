@@ -10,7 +10,7 @@ class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
         if isinstance(kernel_size, int):
-            kernel_size = (kernel_size, kernel_size)  # Ensure kernel_size is a tuple
+            kernel_size = (kernel_size, kernel_size)
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.kernel_size = kernel_size
@@ -23,26 +23,34 @@ class ComplexConv2d(nn.Module):
         imag = self.real_conv(x[:, 1]) + self.imag_conv(x[:, 0])
         return torch.stack([real, imag], dim=1)
 
-
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
         self.num_features = num_features
-        self.real_weight = nn.Parameter(torch.Tensor(num_features))
-        self.imag_weight = nn.Parameter(torch.Tensor(num_features))
-        self.real_bias = nn.Parameter(torch.Tensor(num_features))
-        self.imag_bias = nn.Parameter(torch.Tensor(num_features))
-        self.reset_parameters()
+        self.real_bn = nn.BatchNorm2d(num_features)
+        self.imag_bn = nn.BatchNorm2d(num_features)
 
-    def reset_parameters(self):
-        nn.init.ones_(self.real_weight)
-        nn.init.zeros_(self.real_bias)
-        nn.init.ones_(self.imag_weight)
-        nn.init.zeros_(self.imag_bias)
+    @property
+    def weight(self):
+        return torch.stack([self.real_bn.weight, self.imag_bn.weight], dim=0)
+
+    @weight.setter
+    def weight(self, value):
+        self.real_bn.weight.data = value[0].data
+        self.imag_bn.weight.data = value[1].data
+
+    @property
+    def bias(self):
+        return torch.stack([self.real_bn.bias, self.imag_bn.bias], dim=0)
+
+    @bias.setter
+    def bias(self, value):
+        self.real_bn.bias.data = value[0].data
+        self.imag_bn.bias.data = value[1].data
 
     def forward(self, x):
-        real = F.batch_norm(x[:, 0], None, None, self.real_weight, self.real_bias, True, 0.1, 1e-5)
-        imag = F.batch_norm(x[:, 1], None, None, self.imag_weight, self.imag_bias, True, 0.1, 1e-5)
+        real = self.real_bn(x[:, 0])
+        imag = self.imag_bn(x[:, 1])
         return torch.stack([real, imag], dim=1)
 
 class ComplexPReLU(nn.Module):
@@ -61,15 +69,12 @@ class ComplexBottleneck(nn.Module):
         super(ComplexBottleneck, self).__init__()
         self.connect = stride == 1 and inp == oup
         self.conv = nn.Sequential(
-            # pw
             ComplexConv2d(inp, inp * expansion, 1, 1, 0, bias=False),
             ComplexBatchNorm2d(inp * expansion),
             ComplexPReLU(inp * expansion),
-            # dw
             ComplexConv2d(inp * expansion, inp * expansion, 3, stride, 1, bias=False, groups=inp * expansion),
             ComplexBatchNorm2d(inp * expansion),
             ComplexPReLU(inp * expansion),
-            # pw-linear
             ComplexConv2d(inp * expansion, oup, 1, 1, 0, bias=False),
             ComplexBatchNorm2d(oup),
         )
