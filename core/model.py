@@ -178,8 +178,17 @@ class ComplexArcMarginProduct(nn.Module):
         output *= self.s
         return output
 
+# Preprocessing function to convert 3-channel input to 2-channel complex representation
+def preprocess_input(input):
+    # Example conversion: taking the first channel as the real part and the second channel as the imaginary part
+    real_part = input[:, 0:1, :, :]  # Taking the first channel
+    imag_part = input[:, 1:2, :, :]  # Taking the second channel (can be changed based on your requirement)
+    complex_input = torch.cat([real_part, imag_part], dim=1)
+    return complex_input
+
 if __name__ == "__main__":
-    input = Variable(torch.FloatTensor(2, 2, 112, 96))  # Changed input size to include real and imaginary parts
+    input = Variable(torch.FloatTensor(2, 3, 112, 96))  # Original 3-channel input
+    input = preprocess_input(input)  # Convert to 2-channel complex input
     net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
     print(net)
     x = net(input)
