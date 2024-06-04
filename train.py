@@ -13,6 +13,8 @@ import time
 from lfw_eval import parseList, evaluation_10_fold
 import numpy as np
 import scipy.io
+import logging
+
 
 # GPU initialization
 gpu_list = ''
