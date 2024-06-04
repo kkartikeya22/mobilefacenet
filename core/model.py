@@ -179,7 +179,7 @@ class ComplexArcMarginProduct(nn.Module):
 def preprocess_input(input):
     # Example conversion: taking the first channel as the real part and the second channel as the imaginary part
     real_part = input[:, 0:1, :, :]  # Taking the first channel
-    imag_part = input[:, 1:1, :, :]  # Taking the second channel (can be changed based on your requirement)
+    imag_part = input[:, 1:2, :, :]  # Taking the second channel
     complex_input = torch.cat([real_part, imag_part], dim=1)
     return complex_input
 
