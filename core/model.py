@@ -5,6 +5,7 @@ from torch.autograd import Variable
 import math
 from torch.nn import Parameter
 
+
 class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
@@ -18,9 +19,10 @@ class ComplexConv2d(nn.Module):
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
-        real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
-        imag = self.real_conv(x[:, 1]) + self.imag_conv(x[:, 0])
+        real = self.real_conv(x[:, 0:1]) - self.imag_conv(x[:, 1:2])
+        imag = self.real_conv(x[:, 1:2]) + self.imag_conv(x[:, 0:1])
         return torch.stack([real, imag], dim=1)
+
 
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
@@ -48,9 +50,10 @@ class ComplexBatchNorm2d(nn.Module):
         self.imag_bn.bias.data = value[1].data
 
     def forward(self, x):
-        real = self.real_bn(x[:, 0])
-        imag = self.imag_bn(x[:, 1])
+        real = self.real_bn(x[:, 0:1])
+        imag = self.imag_bn(x[:, 1:2])
         return torch.stack([real, imag], dim=1)
+
 
 class ComplexPReLU(nn.Module):
     def __init__(self, num_parameters=1):
@@ -59,9 +62,10 @@ class ComplexPReLU(nn.Module):
         self.imag_prelu = nn.PReLU(num_parameters)
 
     def forward(self, x):
-        real = self.real_prelu(x[:, 0])
-        imag = self.imag_prelu(x[:, 1])
+        real = self.real_prelu(x[:, 0:1])
+        imag = self.imag_prelu(x[:, 1:2])
         return torch.stack([real, imag], dim=1)
+
 
 class ComplexBottleneck(nn.Module):
     def __init__(self, inp, oup, stride, expansion):
@@ -84,6 +88,7 @@ class ComplexBottleneck(nn.Module):
         else:
             return self.conv(x)
 
+
 class ComplexConvBlock(nn.Module):
     def __init__(self, inp, oup, k, s, p, dw=False, linear=False):
         super(ComplexConvBlock, self).__init__()
@@ -95,6 +100,7 @@ class ComplexConvBlock(nn.Module):
         self.bn = ComplexBatchNorm2d(oup)
         if not linear:
             self.prelu = ComplexPReLU(oup)
+
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)
@@ -102,6 +108,7 @@ class ComplexConvBlock(nn.Module):
             return x
         else:
             return self.prelu(x)
+
 
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
@@ -149,7 +156,6 @@ class ComplexMobileFacenet(nn.Module):
         return x
 
 
-
 class ComplexArcMarginProduct(nn.Module):
     def __init__(self, in_features=128, out_features=200, s=32.0, m=0.50, easy_margin=False):
         super(ComplexArcMarginProduct, self).__init__()
@@ -178,7 +184,6 @@ class ComplexArcMarginProduct(nn.Module):
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
         return output
-
 
 if __name__ == "__main__":
     input = Variable(torch.FloatTensor(2, 2, 112, 96))  # Changed input size to include real and imaginary parts
