@@ -177,10 +177,11 @@ class ComplexArcMarginProduct(nn.Module):
 
 # Preprocessing function to convert 3-channel input to 2-channel complex representation
 def preprocess_input(input):
-    # Example conversion: taking the first channel as the real part and the second channel as the imaginary part
-    real_part = input[:, 0:1, :, :]  # Taking the first channel
-    imag_part = input[:, 1:2, :, :]  # Taking the second channel
-    complex_input = torch.cat([real_part, imag_part], dim=1)
+    # Example conversion: combining the 3 channels into 2 complex channels
+    real_part = input[:, 0, :, :]  # Use the first channel as the real part
+    imag_part = input[:, 1, :, :]  # Use the second channel as the imaginary part
+    # You can also modify the method to combine channels as needed
+    complex_input = torch.stack([real_part, imag_part], dim=1)
     return complex_input
 
 if __name__ == "__main__":
