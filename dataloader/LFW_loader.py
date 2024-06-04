@@ -11,10 +11,10 @@ class LFW(Dataset):
     def __getitem__(self, index):
         imgl = imageio.imread(self.imgl_list[index])
         if len(imgl.shape) == 2:
-            imgl = np.stack([imgl] * 3, 2)
+            imgl = np.stack([imgl] * 3, axis=2)
         imgr = imageio.imread(self.imgr_list[index])
         if len(imgr.shape) == 2:
-            imgr = np.stack([imgr] * 3, 2)
+            imgr = np.stack([imgr] * 3, axis=2)
 
         imglist = [imgl, imgl[:, ::-1, :], imgr, imgr[:, ::-1, :]]
         for i in range(len(imglist)):
@@ -33,3 +33,6 @@ class LFW(Dataset):
 
     def __len__(self):
         return len(self.imgl_list)
+
+if __name__ == '__main__':
+    pass

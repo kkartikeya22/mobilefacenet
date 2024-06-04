@@ -1,6 +1,6 @@
-import numpy as np
-import imageio
 import os
+import imageio
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -47,3 +47,6 @@ class CASIA_Face(Dataset):
 
     def __len__(self):
         return len(self.image_list)
+
+if __name__ == '__main__':
+    pass
