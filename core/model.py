@@ -22,7 +22,7 @@ class ComplexConv2d(nn.Module):
         real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
         imag = self.real_conv(x[:, 1]) + self.imag_conv(x[:, 0])
         return torch.stack([real, imag], dim=1)
-
+    
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
@@ -107,7 +107,7 @@ class ComplexConvBlock(nn.Module):
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
         super(ComplexMobileFacenet, self).__init__()
-        self.conv1 = ComplexConvBlock(3, 64, 3, 2, 1)  # Changed input channels from 3 to 2 (real and imaginary parts)
+        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # Changed input channels from 3 to 2 (real and imaginary parts)
         self.dw_conv1 = ComplexConvBlock(64, 64, 3, 1, 1, dw=True)
         self.inplanes = 64
         block = ComplexBottleneck
