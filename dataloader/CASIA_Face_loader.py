@@ -2,7 +2,7 @@ import numpy as np
 import imageio
 import os
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 class CASIA_Face(Dataset):
     def __init__(self, root):
@@ -47,11 +47,3 @@ class CASIA_Face(Dataset):
 
     def __len__(self):
         return len(self.image_list)
-
-if __name__ == '__main__':
-    data_dir = '/home/brl/USER/fzc/dataset/CASIA'
-    dataset = CASIA_Face(root=data_dir)
-    trainloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=2, drop_last=False)
-    print(len(dataset))
-    for data in trainloader:
-        print(data[0].shape)

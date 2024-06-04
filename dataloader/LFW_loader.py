@@ -1,8 +1,9 @@
 import numpy as np
 import imageio
 import torch
+from torch.utils.data import Dataset
 
-class LFW(object):
+class LFW(Dataset):
     def __init__(self, imgl, imgr):
         self.imgl_list = imgl
         self.imgr_list = imgr
@@ -15,8 +16,6 @@ class LFW(object):
         if len(imgr.shape) == 2:
             imgr = np.stack([imgr] * 3, 2)
 
-        # imgl = imgl[:, :, ::-1]
-        # imgr = imgr[:, :, ::-1]
         imglist = [imgl, imgl[:, ::-1, :], imgr, imgr[:, ::-1, :]]
         for i in range(len(imglist)):
             imglist[i] = (imglist[i] - 127.5) / 128.0
@@ -34,6 +33,3 @@ class LFW(object):
 
     def __len__(self):
         return len(self.imgl_list)
-
-if __name__ == '__main__':
-    pass
