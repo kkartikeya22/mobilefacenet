@@ -105,7 +105,7 @@ class ComplexBottleneck(nn.Module):
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
         super(ComplexMobileFacenet, self).__init__()
-        self.conv1 = ComplexConvBlock(2, 64, 3, 3, 1)  # Changed input channels from 3 to 2
+        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # Changed input channels from 3 to 2
         self.dw_conv1 = ComplexConvBlock(64, 64, 3, 1, 1, dw=True)
         self.inplanes = 64
         block = ComplexBottleneck
