@@ -9,26 +9,10 @@ from config import CASIA_DATA_DIR, LFW_DATA_DIR
 from core.model import ComplexMobileFacenet
 from dataloader.CASIA_Face_loader import CASIA_Face
 from dataloader.LFW_loader import LFW
-from lfw_eval import parseList, evaluation_10_fold
 import time
+from lfw_eval import parseList, evaluation_10_fold
 import numpy as np
 import scipy.io
-import logging
-
-
-def init_log(save_dir):
-    log_filename = os.path.join(save_dir, 'train.log')
-    level = logging.INFO
-    format = '%(asctime)s - %(levelname)s - %(message)s'
-    logging.basicConfig(filename=log_filename, level=level, format=format)
-    console = logging.StreamHandler()
-    console.setLevel(level)
-    formatter = logging.Formatter(format)
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
-    logging.info("Logging initialized.")
-    return logging
-
 
 # GPU initialization
 gpu_list = ''
@@ -43,14 +27,21 @@ else:
             gpu_list += ','
 os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
 
+# Initialize logging
+log_dir = os.path.join(SAVE_DIR, 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+log_file = os.path.join(log_dir, 'train_{}.log'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
+logging.basicConfig(filename=log_file, level=logging.INFO)
+logging.info("Logging initialized.")
+print = logging.info
+
 # Other initialization
 start_epoch = 1
 save_dir = os.path.join(SAVE_DIR, MODEL_PRE + 'v2_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 if os.path.exists(save_dir):
     raise NameError('model dir exists!')
 os.makedirs(save_dir)
-logging = init_log(save_dir)
-_print = logging.info
 
 # Define trainloader and testloader
 trainset = CASIA_Face(root=CASIA_DATA_DIR)
@@ -63,7 +54,7 @@ testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
                                          shuffle=False, num_workers=2, drop_last=False)
 
 # Define model
-net = ComplexMobileFacenet()
+net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
 
 if RESUME:
     ckpt = torch.load(RESUME)
@@ -74,7 +65,8 @@ if RESUME:
 optimizer_ft = optim.SGD(net.parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=4e-5)
 exp_lr_scheduler = lr_scheduler.MultiStepLR(optimizer_ft, milestones=[36, 52, 58], gamma=0.1)
 
-net = net.cuda()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+net = net.to(device)
 if multi_gpus:
     net = torch.nn.DataParallel(net)
 criterion = torch.nn.CrossEntropyLoss()
@@ -84,14 +76,14 @@ best_epoch = 0
 for epoch in range(start_epoch, TOTAL_EPOCH + 1):
     exp_lr_scheduler.step()
     # Training
-    _print('Train Epoch:{}_{} ...'.format(epoch, TOTAL_EPOCH))
+    print('Train Epoch: {} / {} ...'.format(epoch, TOTAL_EPOCH))
     net.train()
 
     train_total_loss = 0.0
     total = 0
     since = time.time()
     for data in trainloader:
-        img, label = data[0].cuda(), data[1].cuda()
+        img, label = data[0].to(device), data[1].to(device)
         batch_size = img.size(0)
         optimizer_ft.zero_grad()
 
@@ -106,18 +98,18 @@ for epoch in range(start_epoch, TOTAL_EPOCH + 1):
 
     train_total_loss = train_total_loss / total
     time_elapsed = time.time() - since
-    loss_msg = '    total_loss: {:.4f} time: {:.0f}m {:.0f}s'.format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
-    _print(loss_msg)
+    loss_msg = 'Total Loss: {:.4f}, Time: {:.0f}m {:.0f}s'.format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
+    print(loss_msg)
 
     # Test on LFW
     if epoch % TEST_FREQ == 0:
         net.eval()
         featureLs = None
         featureRs = None
-        _print('Test Epoch: {} ...'.format(epoch))
+        print('Test Epoch: {} ...'.format(epoch))
         for data in testloader:
             for i in range(len(data)):
-                data[i] = data[i].cuda()
+                data[i] = data[i].to(device)
             res = [net(d).data.cpu().numpy() for d in data]
             featureL = np.concatenate((res[0], res[1]), 1)
             featureR = np.concatenate((res[2], res[3]), 1)
@@ -134,12 +126,12 @@ for epoch in range(start_epoch, TOTAL_EPOCH + 1):
         scipy.io.savemat(os.path.join(save_dir, 'epoch_{}.mat'.format(epoch)), result)
 
         accs = evaluation_10_fold(result)
-        _print('LFW Ave Accuracy: {:.4f}'.format(np.mean(accs) * 100))
+        print('LFW Ave Accuracy: {:.4f}'.format(np.mean(accs) * 100))
 
         if np.mean(accs) > best_acc:
             best_acc = np.mean(accs)
             best_epoch = epoch
-            _print('Best LFW Ave Accuracy: {:.4f}, Achieved at epoch {}'.format(best_acc * 100, best_epoch))
+            print('Best LFW Ave Accuracy: {:.4f}, Achieved at epoch {}'.format(best_acc * 100, best_epoch))
             if multi_gpus:
                 torch.save({'epoch': epoch, 'net_state_dict': net.module.state_dict()},
                            os.path.join(save_dir, 'best_model.pth'))
@@ -156,4 +148,4 @@ for epoch in range(start_epoch, TOTAL_EPOCH + 1):
             torch.save({'epoch': epoch, 'net_state_dict': net.state_dict()},
                        os.path.join(save_dir, 'model_{}.pth'.format(epoch)))
 
-_print('Finished Training')
+print('Finished Training')
