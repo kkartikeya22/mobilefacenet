@@ -9,10 +9,24 @@ from config import CASIA_DATA_DIR, LFW_DATA_DIR
 from core.model import ComplexMobileFacenet
 from dataloader.CASIA_Face_loader import CASIA_Face
 from dataloader.LFW_loader import LFW
-import time
 from lfw_eval import parseList, evaluation_10_fold
+import time
 import numpy as np
 import scipy.io
+import logging
+
+# Initialize logging
+def init_log(save_dir):
+    log_filename = os.path.join(save_dir, 'train.log')
+    level = logging.INFO
+    format = '%(asctime)s - %(levelname)s - %(message)s'
+    logging.basicConfig(filename=log_filename, level=level, format=format)
+    console = logging.StreamHandler()
+    console.setLevel(level)
+    formatter = logging.Formatter(format)
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+    logging.info("Logging initialized.")
 
 # GPU initialization
 gpu_list = ''
