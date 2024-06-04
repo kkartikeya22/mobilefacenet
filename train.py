@@ -52,7 +52,6 @@ testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
                                          shuffle=False, num_workers=2, drop_last=False)
 
 # define model
-# Define YOUR_BOTTLENECK_SETTING here
 YOUR_BOTTLENECK_SETTING = [(2, 64, 5, 2), (4, 128, 1, 1), (2, 128, 6, 1), (2, 512, 1, 1)]
 net = ComplexMobileFacenet(bottleneck_setting=YOUR_BOTTLENECK_SETTING)
 
@@ -92,9 +91,16 @@ criterion = torch.nn.CrossEntropyLoss()
 
 best_acc = 0.0
 best_epoch = 0
+
+# Adjusting input to have two channels for real and imaginary parts
+def preprocess_input(input):
+    real_part = input[:, 0:1, :, :]  # Taking the first channel
+    imag_part = input[:, 1:2, :, :]  # Taking the second channel (can be changed based on your requirement)
+    complex_input = torch.cat([real_part, imag_part], dim=1)
+    return complex_input
+
 for epoch in range(start_epoch, TOTAL_EPOCH+1):
     exp_lr_scheduler.step()
-    # train model
     _print('Train Epoch: {}/{} ...'.format(epoch, TOTAL_EPOCH))
     net.train()
 
@@ -106,14 +112,10 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         batch_size = img.size(0)
         optimizer_ft.zero_grad()
 
-        # Adjusting input to have two channels for real and imaginary parts
-        if img.dim() == 3:  # If img has 3 dimensions (batch_size, height, width)
-            img = img.unsqueeze(1).repeat(1, 1, 1, 1)  # Convert single-channel images to dual-channel
-        elif img.dim() == 4:  # If img already has 4 dimensions (batch_size, channels, height, width)
-            img = img.repeat(1, 2, 1, 1)  # Repeat the channels
-
+        # Convert input to 2-channel complex format
+        img = preprocess_input(img)
+        
         raw_logits = net(img)
-
         output = ArcMargin(raw_logits, label)
         total_loss = criterion(output, label)
         total_loss.backward()
