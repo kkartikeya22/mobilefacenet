@@ -93,7 +93,6 @@ criterion = torch.nn.CrossEntropyLoss()
 best_acc = 0.0
 best_epoch = 0
 for epoch in range(start_epoch, TOTAL_EPOCH+1):
-    exp_lr_scheduler.step()
     # train model
     _print('Train Epoch: {}/{} ...'.format(epoch, TOTAL_EPOCH))
     net.train()
@@ -106,8 +105,9 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         batch_size = img.size(0)
         optimizer_ft.zero_grad()
 
-        # Adjusting input to have two channels for real and imaginary parts
-        img = img.unsqueeze(1).repeat(1, 2, 1, 1)  # Convert single-channel images to dual-channel
+        # Convert single-channel images to dual-channel
+        img = img.unsqueeze(1).repeat(1, 2, 1, 1)
+
         raw_logits = net(img)
 
         output = ArcMargin(raw_logits, label)
@@ -134,18 +134,18 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
             for i in range(len(data)):
                 data[i] = data[i].cuda()
             res = [net(data[i]) for i in range(len(data))]
-            featureL = torch.cat((res[0], res[1]), 1).data.cpu().numpy()
-            featureR = torch.cat((res[2], res[3]), 1).data.cpu().numpy()
+            featureL = torch.cat((res[0], res[1]), 1)
+            featureR = torch.cat((res[2], res[3]), 1)
             if featureLs is None:
                 featureLs = featureL
             else:
-                featureLs = np.concatenate((featureLs, featureL), 0)
+                featureLs = torch.cat((featureLs, featureL), 0)
             if featureRs is None:
                 featureRs = featureR
             else:
-                featureRs = np.concatenate((featureRs, featureR), 0)
+                featureRs = torch.cat((featureRs, featureR), 0)
 
-        result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
+        result = {'fl': featureLs.cpu().numpy(), 'fr': featureRs.cpu().numpy(), 'fold': folds, 'flag': flags}
         # save tmp_result
         scipy.io.savemat('./result/tmp_result.mat', result)
         accs = evaluation_10_fold('./result/tmp_result.mat')
@@ -164,5 +164,5 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         torch.save({
             'epoch': epoch,
             'net_state_dict': net_state_dict},
-            os.path.join(savedir, '%03d.ckpt' % epoch))
+            os.path.join(save_dir, '%03d.ckpt' % epoch))
 print('finishing training')
