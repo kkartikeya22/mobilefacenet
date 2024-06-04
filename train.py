@@ -95,7 +95,7 @@ best_epoch = 0
 # Adjusting input to have two channels for real and imaginary parts
 def preprocess_input(input):
     real_part = input[:, 0:1, :, :]  # Taking the first channel
-    imag_part = input[:, 1:2, :, :]  # Taking the second channel (can be changed based on your requirement)
+    imag_part = input[:, 1:2, :, :]  # Taking the second channel
     complex_input = torch.cat([real_part, imag_part], dim=1)
     return complex_input
 
@@ -162,3 +162,4 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         state = {'epoch': epoch, 'net_state_dict': net.state_dict()}
         torch.save(state, os.path.join(save_dir, '%03d.ckpt' % epoch))
         _print('    Model saved to %s' % save_dir)
+
