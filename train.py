@@ -15,7 +15,7 @@ import numpy as np
 import scipy.io
 import logging
 
-# Initialize logging
+
 def init_log(save_dir):
     log_filename = os.path.join(save_dir, 'train.log')
     level = logging.INFO
@@ -27,6 +27,8 @@ def init_log(save_dir):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
     logging.info("Logging initialized.")
+    return logging
+
 
 # GPU initialization
 gpu_list = ''
