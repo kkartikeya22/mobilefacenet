@@ -107,7 +107,7 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
         optimizer_ft.zero_grad()
 
         # Adjusting input to have two channels for real and imaginary parts
-        img = torch.stack([img, img], dim=1)
+        img = img.unsqueeze(1).repeat(1, 2, 1, 1)  # Convert single-channel images to dual-channel
         raw_logits = net(img)
 
         output = ArcMargin(raw_logits, label)
