@@ -27,16 +27,17 @@ class CASIA_Face(Dataset):
         target = self.label_list[index]
         img = imageio.imread(img_path)
 
-        if len(img.shape) == 2:
-            img = np.stack([img] * 3, axis=2)
+        if len(img.shape) == 2:  # If image is grayscale
+            img = np.expand_dims(img, axis=-1)  # Add one channel dimension
+
         flip = np.random.choice(2)*2-1
         img = img[:, ::flip, :]
         img = (img - 127.5) / 128.0
         img = img.transpose(2, 0, 1)
 
-        # Create the imaginary part as random noise
+        # Create the imaginary part as zeros
         img_real = img
-        img_imag = np.random.normal(0, 1, img.shape).astype(np.float32)
+        img_imag = np.zeros_like(img)
 
         # Stack the real and imaginary parts along a new dimension
         img_complex = np.stack([img_real, img_imag], axis=0)
