@@ -1,22 +1,23 @@
 import os
 import torch
-import torch.optim as optim
 import torch.utils.data
-from torch.optim import lr_scheduler
+from torch import nn
+from torch.nn import DataParallel
 from datetime import datetime
 from config import BATCH_SIZE, SAVE_FREQ, RESUME, SAVE_DIR, TEST_FREQ, TOTAL_EPOCH, MODEL_PRE, GPU
 from config import CASIA_DATA_DIR, LFW_DATA_DIR
-from core.model import ComplexMobileFacenet
+from core.model import ComplexMobileFacenet, ComplexArcMarginProduct
+from core.utils import init_log
 from dataloader.CASIA_Face_loader import CASIA_Face
 from dataloader.LFW_loader import LFW
+from torch.optim import lr_scheduler
+import torch.optim as optim
 import time
 from lfw_eval import parseList, evaluation_10_fold
 import numpy as np
 import scipy.io
-import logging
 
-
-# GPU initialization
+# gpu init
 gpu_list = ''
 multi_gpus = False
 if isinstance(GPU, int):
@@ -29,68 +30,91 @@ else:
             gpu_list += ','
 os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
 
-# Initialize logging
-log_dir = os.path.join(SAVE_DIR, 'logs')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-log_file = os.path.join(log_dir, 'train_{}.log'.format(datetime.now().strftime('%Y%m%d_%H%M%S')))
-logging.basicConfig(filename=log_file, level=logging.INFO)
-logging.info("Logging initialized.")
-print = logging.info
-
-# Other initialization
+# other init
 start_epoch = 1
 save_dir = os.path.join(SAVE_DIR, MODEL_PRE + 'v2_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 if os.path.exists(save_dir):
     raise NameError('model dir exists!')
 os.makedirs(save_dir)
+logging = init_log(save_dir)
+_print = logging.info
 
-# Define trainloader and testloader
+# define trainloader and testloader
 trainset = CASIA_Face(root=CASIA_DATA_DIR)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                           shuffle=True, num_workers=2, drop_last=False)
 
+# nl: left_image_path
+# nr: right_image_path
 nl, nr, folds, flags = parseList(root=LFW_DATA_DIR)
 testdataset = LFW(nl, nr)
 testloader = torch.utils.data.DataLoader(testdataset, batch_size=32,
                                          shuffle=False, num_workers=2, drop_last=False)
 
-# Define model
-net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
+# define model
+# Define YOUR_BOTTLENECK_SETTING here
+YOUR_BOTTLENECK_SETTING = [(2, 64, 5, 2), (4, 128, 1, 1), (2, 128, 6, 1), (2, 512, 1, 1)]
+net = ComplexMobileFacenet(bottleneck_setting=YOUR_BOTTLENECK_SETTING)
+
+ArcMargin = ComplexArcMarginProduct(128, trainset.class_nums)
 
 if RESUME:
     ckpt = torch.load(RESUME)
     net.load_state_dict(ckpt['net_state_dict'])
     start_epoch = ckpt['epoch'] + 1
 
-# Define optimizer and scheduler
-optimizer_ft = optim.SGD(net.parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=4e-5)
+# define optimizers
+ignored_params = list(map(id, net.linear1.parameters()))
+ignored_params += list(map(id, ArcMargin.weight))
+prelu_params_id = []
+prelu_params = []
+for m in net.modules():
+    if isinstance(m, nn.PReLU):
+        ignored_params += list(map(id, m.parameters()))
+        prelu_params += m.parameters()
+base_params = filter(lambda p: id(p) not in ignored_params, net.parameters())
+
+optimizer_ft = optim.SGD([
+    {'params': base_params, 'weight_decay': 4e-5},
+    {'params': net.linear1.parameters(), 'weight_decay': 4e-4},
+    {'params': ArcMargin.weight, 'weight_decay': 4e-4},
+    {'params': prelu_params, 'weight_decay': 0.0}
+], lr=0.1, momentum=0.9, nesterov=True)
+
 exp_lr_scheduler = lr_scheduler.MultiStepLR(optimizer_ft, milestones=[36, 52, 58], gamma=0.1)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-net = net.to(device)
+net = net.cuda()
+ArcMargin = ArcMargin.cuda()
 if multi_gpus:
-    net = torch.nn.DataParallel(net)
+    net = DataParallel(net)
+    ArcMargin = DataParallel(ArcMargin)
 criterion = torch.nn.CrossEntropyLoss()
 
 best_acc = 0.0
 best_epoch = 0
-for epoch in range(start_epoch, TOTAL_EPOCH + 1):
+for epoch in range(start_epoch, TOTAL_EPOCH+1):
     exp_lr_scheduler.step()
-    # Training
-    print('Train Epoch: {} / {} ...'.format(epoch, TOTAL_EPOCH))
+    # train model
+    _print('Train Epoch: {}/{} ...'.format(epoch, TOTAL_EPOCH))
     net.train()
 
     train_total_loss = 0.0
     total = 0
     since = time.time()
     for data in trainloader:
-        img, label = data[0].to(device), data[1].to(device)
+        img, label = data[0].cuda(), data[1].cuda()
         batch_size = img.size(0)
         optimizer_ft.zero_grad()
 
-        output = net(img)
+        # Adjusting input to have two channels for real and imaginary parts
+        if img.dim() == 3:  # If img has 3 dimensions (batch_size, height, width)
+            img = img.unsqueeze(1).repeat(1, 1, 1, 1)  # Convert single-channel images to dual-channel
+        elif img.dim() == 4:  # If img already has 4 dimensions (batch_size, channels, height, width)
+            img = img.repeat(1, 2, 1, 1)  # Repeat the channels
 
+        raw_logits = net(img)
+
+        output = ArcMargin(raw_logits, label)
         total_loss = criterion(output, label)
         total_loss.backward()
         optimizer_ft.step()
@@ -100,19 +124,20 @@ for epoch in range(start_epoch, TOTAL_EPOCH + 1):
 
     train_total_loss = train_total_loss / total
     time_elapsed = time.time() - since
-    loss_msg = 'Total Loss: {:.4f}, Time: {:.0f}m {:.0f}s'.format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
-    print(loss_msg)
+    loss_msg = '    total_loss: {:.4f} time: {:.0f}m {:.0f}s'\
+        .format(train_total_loss, time_elapsed // 60, time_elapsed % 60)
+    _print(loss_msg)
 
-    # Test on LFW
+    # test model on lfw
     if epoch % TEST_FREQ == 0:
         net.eval()
         featureLs = None
         featureRs = None
-        print('Test Epoch: {} ...'.format(epoch))
+        _print('Test Epoch: {} ...'.format(epoch))
         for data in testloader:
             for i in range(len(data)):
-                data[i] = data[i].to(device)
-            res = [net(d).data.cpu().numpy() for d in data]
+                data[i] = data[i].cuda()
+            res = [net(torch.stack([d, d], dim=1)).data.cpu().numpy() for d in data]
             featureL = np.concatenate((res[0], res[1]), 1)
             featureR = np.concatenate((res[2], res[3]), 1)
             if featureLs is None:
@@ -125,29 +150,13 @@ for epoch in range(start_epoch, TOTAL_EPOCH + 1):
                 featureRs = np.concatenate((featureRs, featureR), 0)
 
         result = {'fl': featureLs, 'fr': featureRs, 'fold': folds, 'flag': flags}
-        scipy.io.savemat(os.path.join(save_dir, 'epoch_{}.mat'.format(epoch)), result)
+        # save tmp_result
+        scipy.io.savemat('./result/tmp_result.mat', result)
+        accs = evaluation_10_fold('./result/tmp_result.mat')
+        _print('    ave: {:.4f}'.format(np.mean(accs) * 100))
 
-        accs = evaluation_10_fold(result)
-        print('LFW Ave Accuracy: {:.4f}'.format(np.mean(accs) * 100))
-
-        if np.mean(accs) > best_acc:
-            best_acc = np.mean(accs)
-            best_epoch = epoch
-            print('Best LFW Ave Accuracy: {:.4f}, Achieved at epoch {}'.format(best_acc * 100, best_epoch))
-            if multi_gpus:
-                torch.save({'epoch': epoch, 'net_state_dict': net.module.state_dict()},
-                           os.path.join(save_dir, 'best_model.pth'))
-            else:
-                torch.save({'epoch': epoch, 'net_state_dict': net.state_dict()},
-                           os.path.join(save_dir, 'best_model.pth'))
-
-    # Save model
+    # save model
     if epoch % SAVE_FREQ == 0:
-        if multi_gpus:
-            torch.save({'epoch': epoch, 'net_state_dict': net.module.state_dict()},
-                       os.path.join(save_dir, 'model_{}.pth'.format(epoch)))
-        else:
-            torch.save({'epoch': epoch, 'net_state_dict': net.state_dict()},
-                       os.path.join(save_dir, 'model_{}.pth'.format(epoch)))
-
-print('Finished Training')
+        state = {'epoch': epoch, 'net_state_dict': net.state_dict()}
+        torch.save(state, os.path.join(save_dir, '%03d.ckpt' % epoch))
+        _print('    Model saved to %s' % save_dir)
