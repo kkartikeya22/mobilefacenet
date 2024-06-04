@@ -107,7 +107,7 @@ class ComplexConvBlock(nn.Module):
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
         super(ComplexMobileFacenet, self).__init__()
-        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # changed input channels from 3 to 2 (real and imaginary parts)
+        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # Changed input channels from 3 to 2 (real and imaginary parts)
         self.dw_conv1 = ComplexConvBlock(64, 64, 3, 1, 1, dw=True)
         self.inplanes = 64
         block = ComplexBottleneck
@@ -139,6 +139,7 @@ class ComplexMobileFacenet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        # Ensure that the input has the correct shape [batch_size, channels, height, width]
         x = self.conv1(x)
         x = self.dw_conv1(x)
         x = self.blocks(x)
@@ -147,6 +148,7 @@ class ComplexMobileFacenet(nn.Module):
         x = self.linear1(x)
         x = x.view(x.size(0), -1)
         return x
+
 
 class ComplexArcMarginProduct(nn.Module):
     def __init__(self, in_features=128, out_features=200, s=32.0, m=0.50, easy_margin=False):
