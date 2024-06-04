@@ -9,11 +9,14 @@ from torch.nn import Parameter
 class ComplexConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=False, groups=1):
         super(ComplexConv2d, self).__init__()
+        if isinstance(kernel_size, int):
+            kernel_size = (kernel_size, kernel_size)
         self.real_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
-        self.weight = Parameter(torch.Tensor(out_channels, in_channels, *kernel_size))
+        # Initialize weight tensor with correct shape
+        self.weight = Parameter(torch.Tensor(out_channels, in_channels, kernel_size[0], kernel_size[1]))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
