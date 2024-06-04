@@ -15,20 +15,19 @@ class ComplexConv2d(nn.Module):
         self.imag_conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias, groups=groups)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
-        # Initialize weight tensor with correct shape
-        self.weight = Parameter(torch.Tensor(out_channels, in_channels, kernel_size[0], kernel_size[1]))
+        self.weight = Parameter(torch.Tensor(out_channels, in_channels, *kernel_size))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, x):
-        # Concatenate the real and imaginary parts along the channel dimension
-        input_concat = torch.cat((x[:, 0], x[:, 1]), dim=1)
-        # Apply real and imaginary convolutions separately
-        real_out = self.real_conv(input_concat)
-        imag_out = self.imag_conv(input_concat)
-        # Reshape the output tensors to separate real and imaginary parts
-        real = real_out[:, :self.out_channels]
-        imag = imag_out[:, self.out_channels:]
+        # Adjust the number of channels dynamically
+        in_channels = x.size(1)
+        self.real_conv.in_channels = in_channels
+        self.imag_conv.in_channels = in_channels
+
+        real = self.real_conv(x[:, 0]) - self.imag_conv(x[:, 1])
+        imag = self.real_conv(x[:, 1]) + self.imag_conv(x[:, 0])
         return torch.stack([real, imag], dim=1)
+
 
 
 class ComplexBatchNorm2d(nn.Module):
