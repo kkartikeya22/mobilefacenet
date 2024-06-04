@@ -107,12 +107,12 @@ class ComplexConvBlock(nn.Module):
 class ComplexMobileFacenet(nn.Module):
     def __init__(self, bottleneck_setting):
         super(ComplexMobileFacenet, self).__init__()
-        self.conv1 = ComplexConvBlock(3, 64, 3, 2, 1)
+        self.conv1 = ComplexConvBlock(2, 64, 3, 2, 1)  # changed input channels from 3 to 2 (real and imaginary parts)
         self.dw_conv1 = ComplexConvBlock(64, 64, 3, 1, 1, dw=True)
         self.inplanes = 64
         block = ComplexBottleneck
         self.blocks = self._make_layer(block, bottleneck_setting)
-        self.conv2 = ComplexConvBlock(128, 512, 1, 1, 0)
+        self.conv2 = ComplexConvBlock(self.inplanes, 512, 1, 1, 0)
         self.linear7 = ComplexConvBlock(512, 512, (7, 6), 1, 0, dw=True, linear=True)
         self.linear1 = ComplexConvBlock(512, 128, 1, 1, 0, linear=True)
 
@@ -178,7 +178,7 @@ class ComplexArcMarginProduct(nn.Module):
         return output
 
 if __name__ == "__main__":
-    input = Variable(torch.FloatTensor(2, 2, 3, 112, 96))  # Changed input size to include real and imaginary parts
+    input = Variable(torch.FloatTensor(2, 2, 112, 96))  # Changed input size to include real and imaginary parts
     net = ComplexMobileFacenet(bottleneck_setting=[(2, 64, 5, 2), (4, 128, 1, 2), (2, 128, 6, 1)])
     print(net)
     x = net(input)
