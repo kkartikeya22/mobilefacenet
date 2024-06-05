@@ -44,7 +44,7 @@ class CASIA_Face(Dataset):
 
         img_complex = torch.from_numpy(img_complex).float()
 
-        # Transpose image tensor to have shape [channels, height, width]
+        # Transpose image tensor to have shape [height, width, channels]
         img_complex = img_complex.permute(1, 2, 0)
 
         return img_complex, target
