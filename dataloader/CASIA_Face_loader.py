@@ -32,23 +32,20 @@ class CASIA_Face(Dataset):
             img = np.dot(img[..., :3], [0.2989, 0.5870, 0.1140])
 
         # Add channel dimension
-        img = np.expand_dims(img, axis=0)
+        img = np.expand_dims(img, axis=-1)
 
         # Normalize image
         img = (img - 127.5) / 128.0
+
+        # Ensure the number of channels is 2
+        img = img[:,:,:2]
 
         # Create complex input (real and imaginary parts)
         img_real = img
         img_imag = np.zeros_like(img)
         img_complex = np.stack([img_real, img_imag], axis=0)
 
-        # Reduce number of channels to 2
-        img_complex = img_complex[:2]
-
         img_complex = torch.from_numpy(img_complex).float()
-
-        # Transpose image tensor to have shape [channels, height, width]
-        img_complex = img_complex.permute(0, 2, 3, 1)
 
         return img_complex, target
 
