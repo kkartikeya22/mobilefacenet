@@ -34,11 +34,14 @@ class CASIA_Face(Dataset):
         # Add channel dimension
         img = np.expand_dims(img, axis=-1)
 
+        # Ensure the number of channels is 2
+        if img.shape[-1] == 1:
+            img = np.concatenate([img, img], axis=-1)
+        elif img.shape[-1] > 2:
+            img = img[..., :2]
+
         # Normalize image
         img = (img - 127.5) / 128.0
-
-        # Ensure the number of channels is 2
-        img = img[:,:,:2]
 
         # Create complex input (real and imaginary parts)
         img_real = img
