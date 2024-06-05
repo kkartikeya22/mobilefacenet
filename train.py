@@ -95,11 +95,13 @@ best_epoch = 0
 # Adjusting input to have two channels for real and imaginary parts
 def preprocess_input(input):
     # Assuming the input has shape [batch_size, num_channels, height, width]
-    # Extract the first two channels for real and imaginary parts
-    real_part = input[:, :2, :, :]
-    # Ensure that the input has only two channels
-    assert real_part.size(1) == 2, "Input should have two channels for real and imaginary parts"
-    return real_part
+    # Extract the real part from the input image
+    real_part = input
+    # Create the imaginary part by copying the real part
+    imaginary_part = input.clone()
+    # Stack the real and imaginary parts along the channel dimension
+    complex_input = torch.stack([real_part, imaginary_part], dim=1)
+    return complex_input
 
 for epoch in range(start_epoch, TOTAL_EPOCH+1):
     exp_lr_scheduler.step()
@@ -166,9 +168,4 @@ for epoch in range(start_epoch, TOTAL_EPOCH+1):
 # Handle the continuation here after saving the model
         _print('    Model saved to %s' % save_dir)
 
-# Continue your code logic here if necessary
-# For example:
-# Some further processing or analysis
-
-# End of code
 
