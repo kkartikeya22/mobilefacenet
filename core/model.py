@@ -175,7 +175,7 @@ class ComplexArcMarginProduct(nn.Module):
             phi = torch.where(cosine > 0, phi, cosine)
         else:
             phi = torch.where(cosine > self.th, phi, cosine - self.mm)
-        one_hot = torch.zeros(cosine.size(), device='cuda')
+        one_hot = torch.zeros(cosine.size(), device=input.device)
         one_hot.scatter_(1, label.view(-1, 1).long(), 1)
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
@@ -185,9 +185,10 @@ class ComplexArcMarginProduct(nn.Module):
 def preprocess_input(input):
     # Duplicate the entire image for both real and imaginary parts
     real_part = input.clone()[:, None, :, :]  # Add a new dimension
-    imag_part = torch.zeros_like(real_part)
+    imag_part = input.clone()[:, None, :, :]  # Add a new dimension
     complex_input = torch.cat([real_part, imag_part], dim=1)
     return complex_input
+
 
 if __name__ == "__main__":
     input = Variable(torch.FloatTensor(2, 3, 112, 96))  # Original 3-channel input
