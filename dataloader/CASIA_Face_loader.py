@@ -35,10 +35,7 @@ class CASIA_Face(Dataset):
         img = np.expand_dims(img, axis=-1)
 
         # Ensure the number of channels is 2
-        if img.shape[-1] == 1:
-            img = np.concatenate([img, img], axis=-1)
-        elif img.shape[-1] > 2:
-            img = img[..., :2]
+        img = np.repeat(img, 2, axis=-1)
 
         # Normalize image
         img = (img - 127.5) / 128.0
