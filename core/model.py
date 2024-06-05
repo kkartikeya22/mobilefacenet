@@ -29,7 +29,6 @@ class ComplexConv2d(nn.Module):
         return torch.stack([real, imag], dim=1)
 
 
-
 class ComplexBatchNorm2d(nn.Module):
     def __init__(self, num_features):
         super(ComplexBatchNorm2d, self).__init__()
@@ -186,10 +185,9 @@ class ComplexArcMarginProduct(nn.Module):
 def preprocess_input(input):
     # Duplicate the entire image for both real and imaginary parts
     real_part = input.clone()[:, None, :, :]  # Add a new dimension
-    imag_part = input.clone()[:, None, :, :]  # Add a new dimension
+    imag_part = torch.zeros_like(real_part)
     complex_input = torch.cat([real_part, imag_part], dim=1)
     return complex_input
-
 
 if __name__ == "__main__":
     input = Variable(torch.FloatTensor(2, 3, 112, 96))  # Original 3-channel input
