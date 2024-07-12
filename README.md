@@ -1,6 +1,7 @@
 # MobileFaceNet
 
 ## Introduction
+* Converted the original real valued model to complex valued.
 * This repository is the pytorch implement of the paper: [MobileFaceNets: Efficient CNNs for Accurate Real-Time Face Verification on Mobile Devices](https://arxiv.org/pdf/1804.07573.pdf) and I almost follow the implement details of the paper.
 * I train the model on CASIA-WebFace dataset, and evaluate on LFW dataset.
 
